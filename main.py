@@ -48,8 +48,9 @@ passes_boundary_functions = itertools.cycle([
 
 
 def main():
-    logo_image_path = './logo.png'
-    logo_image = Image.open(logo_image_path)
+    input_image_directory = pathlib.Path('./input')
+    input_images = itertools.cycle(sorted(input_image_directory.glob('**/*')))
+    logo_image = Image.open(next(input_images))
 
     fps = 60
     duration = 1  # seconds
@@ -87,6 +88,8 @@ def main():
             logo_image,
             (paste_x, paste_y)
         )
+
+        logo_image = Image.open(next(input_images))
 
         for boundary_function in current_boundary_function:
             if boundary_function(top_x=paste_x, top_y=paste_y, bottom_x=paste_x + width, bottom_y=paste_y + height, width=resolution[0], height=resolution[1], velocity=velocity):
