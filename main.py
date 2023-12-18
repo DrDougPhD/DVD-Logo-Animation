@@ -1,5 +1,6 @@
 import itertools
 import pathlib
+import subprocess
 from typing import Tuple
 
 from PIL import Image
@@ -31,11 +32,11 @@ def passes_west_boundary(top_x: int, top_y: int, bottom_x: int, bottom_y: int, w
 
 
 def passes_south_boundary(top_x: int, top_y: int, bottom_x: int, bottom_y: int, width: int, height: int, velocity: int) -> bool:
-    return bottom_x + velocity > width
+    return bottom_y + velocity > height
 
 
 def passes_east_boundary(top_x: int, top_y: int, bottom_x: int, bottom_y: int, width: int, height: int, velocity: int) -> bool:
-    return bottom_y + velocity > height
+    return bottom_x + velocity > width
 
 
 move_functions = itertools.cycle([move_southeast, move_northeast, move_northwest, move_southwest])
@@ -52,11 +53,11 @@ def main():
     input_images = itertools.cycle(sorted(input_image_directory.glob('**/*')))
     logo_image = Image.open(next(input_images))
 
-    fps = 60
-    duration = 1  # seconds
+    fps = 10
+    duration = 10  # seconds
     frames_to_generate = duration * fps
 
-    velocity = 20
+    velocity = 30
 
     resolution = 3840, 2160
     frame = Image.new(
@@ -101,6 +102,8 @@ def main():
 
         frame_filename = str(index).zfill(digits)
         current_frame.save(output_directory / f'{frame_filename}.png')
+    
+    subprocess.run(['./stitch.sh', str(fps), str(output_directory / ('%0' + str(digits) + 'd.png'))])
 
 
 if __name__ == '__main__':
