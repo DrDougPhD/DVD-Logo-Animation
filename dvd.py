@@ -1,9 +1,7 @@
 import collections
-import functools
 import dataclasses
 import argparse
 from collections.abc import Callable
-import itertools
 import pathlib
 import subprocess
 from typing import Tuple
@@ -91,27 +89,21 @@ def velocity_update(
         current_image_location=new_location,
     )
 
-    if north_boundary_delta >= 0 and east_boundary_delta >= 0:
+    if north_boundary_delta == 0 and east_boundary_delta == 0:
         return new_velocity_keywords
     
     new_location += (east_boundary_delta, north_boundary_delta)
-    # new_velocity_functions = dict(swaps["stay"].items())
 
-    if north_boundary_delta < 0:
+    if north_boundary_delta != 0:
         # Crosses over North / South boundary, but not East / West boundary.
         # We need to head in the opposite vertical direction.
         new_velocity_keywords |= dict(
             current_north_south_boundary_crossed=reverse_north_south_boundary_crossed,
             reverse_north_south_boundary_crossed=current_north_south_boundary_crossed,
         )
-        next_location_velocity = swaps['vertical'][next_location_velocity]
-
-        # new_velocity_functions.update({
-        #     function_key: swaps['vertical'][original_function]
-        #     for function_key, original_function in new_velocity_functions.items()
-        # })
+        next_location_velocity = swaps[VERTICAL][next_location_velocity]
     
-    if east_boundary_delta < 0:
+    if east_boundary_delta != 0:
         # Does not cross over North / South boundary, but does cross East / West boundary.
         # We need to head in the opposite horizontal direction.
         new_velocity_keywords |= dict(
@@ -119,12 +111,7 @@ def velocity_update(
             reverse_east_west_boundary_crossed=current_east_west_boundary_crossed,
             flip=True,
         )
-        next_location_velocity = swaps['horizontal'][next_location_velocity]
-
-        # new_velocity_functions.update({
-        #     function_key: swaps['horizontal'][original_function]
-        #     for function_key, original_function in new_velocity_functions.items()
-        # })
+        next_location_velocity = swaps[HORIZONTAL][next_location_velocity]
         
     # Reaching here means we crossed no boundaries, so keep in the same direction.
     new_velocity_keywords["next_location_velocity"] = next_location_velocity
@@ -133,63 +120,55 @@ def velocity_update(
 
 def move_southeast(current_image_location: AbsoluteBoundingBox, velocity: int) -> Tuple[int, int]:
     return current_image_location + (velocity, velocity)
-    # return x + velocity, y + velocity
 
 
 def move_northeast(current_image_location: AbsoluteBoundingBox, velocity: int) -> Tuple[int, int]:
-    negative_velocity = -1 * velocity
-    return current_image_location + (velocity, negative_velocity)
-    # return x + velocity, y - velocity
+    return current_image_location + (velocity, -velocity)
 
 
 def move_northwest(current_image_location: AbsoluteBoundingBox, velocity: int) -> Tuple[int, int]:
     negative_velocity = -1 * velocity
     return current_image_location + (negative_velocity, negative_velocity)
-    # return x - velocity, y - velocity
 
 
 def move_southwest(current_image_location: AbsoluteBoundingBox, velocity: int) -> Tuple[int, int]:
     return current_image_location + (-velocity, velocity)
-    # return x - velocity, y + velocity
 
 
 def passes_north_boundary(image_location: AbsoluteBoundingBox, frame_resolution: FrameResolution) -> bool:
-    return image_location.top_y < 0  # - velocity < 0
+    if image_location.top_y < 0:
+        return image_location.top_y
+    return 0
 
 
 def passes_west_boundary(image_location: AbsoluteBoundingBox, frame_resolution: FrameResolution) -> bool:
-    return image_location.left_x < 0
+    if image_location.left_x < 0:
+        return image_location.left_x
+    return 0
 
 
 def passes_south_boundary(image_location: AbsoluteBoundingBox, frame_resolution: FrameResolution) -> bool:
-    return image_location.bottom_y > frame_resolution.height
+    return min(0, frame_resolution.height - image_location.bottom_y)
 
 
 def passes_east_boundary(image_location: AbsoluteBoundingBox, frame_resolution: FrameResolution) -> bool:
-    return image_location.right_x > frame_resolution.width
+    return min(0, frame_resolution.width - image_location.right_x)
 
 
-swaps = {
-    # Horizontal swaps
-    "horizontal": {
-        move_northeast: move_northwest,
-        move_southeast: move_southwest,
-        move_northwest: move_northeast,
-        move_southwest: move_southeast,
-    },
-    "vertical": {
-        move_northeast: move_southeast,
-        move_southeast: move_northeast,
-        move_northwest: move_southwest,
-        move_southwest: move_northwest,
-    },
-    # "stay": {
-    #     move_northeast: move_northeast,
-    #     move_southeast: move_southeast,
-    #     move_northwest: move_northwest,
-    #     move_southwest: move_southwest,
-    # }
-}
+HORIZONTAL = 0
+VERTICAL = 1
+
+swaps = [{
+    move_northeast: move_northwest,
+    move_southeast: move_southwest,
+    move_northwest: move_northeast,
+    move_southwest: move_southeast,
+}, {
+    move_northeast: move_southeast,
+    move_southeast: move_northeast,
+    move_northwest: move_southwest,
+    move_southwest: move_northwest,
+}]
 
 
 def main(args):
@@ -238,9 +217,6 @@ def main(args):
         flip=True,
         next_location_velocity=move_southeast,
         velocity=args.velocity,
-        # new_vertical_velocity=move_northeast,
-        # new_horizontal_velocity=move_southwest,
-        # new_reverse_velocity=move_northwest,
         current_north_south_boundary_crossed=passes_south_boundary,
         current_east_west_boundary_crossed=passes_east_boundary,
         reverse_north_south_boundary_crossed=passes_north_boundary,
@@ -297,7 +273,7 @@ if __name__ == '__main__':
         '--velocity',
         type=int,
         help='change in x and y pixels each frame',
-        default=4,
+        default=10,  # 600,  # 4,
     )
     parser.add_argument(
         '--logo', '-i',
