@@ -6,9 +6,11 @@
     "configurations": [
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/dvd.py",
+            "args": [
+            ],
             "console": "integratedTerminal",
             "justMyCode": true
         }
